@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>903</width>
-    <height>565</height>
+    <width>799</width>
+    <height>556</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -47,17 +47,22 @@
         </widget>
        </item>
        <item>
-        <widget class="QLineEdit" name="func_1">
-         <property name="inputMask">
-          <string/>
-         </property>
-         <property name="text">
-          <string/>
-         </property>
-         <property name="placeholderText">
-          <string>f1(x)</string>
-         </property>
-        </widget>
+        <layout class="QFormLayout" name="InputLt">
+         <item row="0" column="1">
+          <widget class="ColorSelector" name="color_1">
+           <property name="text">
+            <string/>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="0">
+          <widget class="QLineEdit" name="func_1">
+           <property name="placeholderText">
+            <string>f1(x)</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
        </item>
        <item>
         <widget class="QPushButton" name="addFunc">
@@ -93,7 +98,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>903</width>
+     <width>799</width>
      <height>22</height>
     </rect>
    </property>
@@ -128,6 +133,11 @@
    <class>GraphView</class>
    <extends>QGraphicsView</extends>
    <header>graphview.h</header>
+  </customwidget>
+  <customwidget>
+   <class>ColorSelector</class>
+   <extends>QToolButton</extends>
+   <header>colorselector.h</header>
   </customwidget>
  </customwidgets>
  <resources/>

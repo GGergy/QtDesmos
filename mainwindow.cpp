@@ -47,6 +47,7 @@ void MainWindow::on_addFunc_clicked() {
     }
     // 1. Создаем новое поле ввода
     QLineEdit *newInput = new QLineEdit(this);
+    ColorSelector *newColor = new ColorSelector(this);
     newInput->setPlaceholderText(QString("f%1(x)").arg(functionInputs.size() + 1));
 
     // 2. Добавляем в вектор
@@ -55,8 +56,8 @@ void MainWindow::on_addFunc_clicked() {
 
     // 3. Вставляем в ваш QVBoxLayout левой панели (например, ui->verticalLayout_Inputs)
     // Вставляем перед последним элементом (Spacer'ом)
-    int layoutIndex = ui->FuncLt->count() - 2;
-    ui->FuncLt->insertWidget(layoutIndex, newInput);
+    ui->InputLt->addRow(newInput, newColor);
+
 
     // 4. Подключаем сигнал
     connect(newInput, &QLineEdit::editingFinished, this, [this, newIndex]() {

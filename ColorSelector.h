@@ -1,0 +1,20 @@
+#ifndef COLORSELECTOR_H
+#define COLORSELECTOR_H
+
+#include <QToolButton>
+
+class ColorSelector : public QToolButton {
+    Q_OBJECT
+public:
+    explicit ColorSelector(QWidget *parent = nullptr);
+    void setColor(const QColor &color);
+    const QColor &color() const;
+
+private slots:
+    void changeColor();
+
+private:
+    QColor m_color;
+};
+
+#endif // COLORSELECTOR_H

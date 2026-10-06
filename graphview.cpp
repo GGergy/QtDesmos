@@ -30,13 +30,29 @@ GraphView::GraphView(QWidget *parent)
 void GraphView::wheelEvent(QWheelEvent *event)
 {
     const double zoomFactor = 1.15;
-    if (event->angleDelta().y() > 0) {
-        scale(zoomFactor, zoomFactor);
-    } else {
-        scale(1.0 / zoomFactor, 1.0 / zoomFactor);
-    }
-}
 
+    // Получаем текущий масштаб сцены
+    const double currentScale = transform().m11();
+
+    // Задаем разумные границы масштабирования
+    const double minScale = 1e-8; // Максимальное отдаление
+    const double maxScale = 1e7;  // Максимальное приближение
+
+    if (event->angleDelta().y() > 0) {
+        // Приближение: проверяем, не превысим ли верхний предел
+        if (currentScale * zoomFactor <= maxScale) {
+            scale(zoomFactor, zoomFactor);
+        }
+    } else {
+        // Отдаление: проверяем, не опустимся ли ниже нижнего предела
+        if (currentScale / zoomFactor >= minScale) {
+            scale(1.0 / zoomFactor, 1.0 / zoomFactor);
+        }
+    }
+
+    // Игнорируем дальнейшую обработку события
+    event->accept();
+}
 // Вспомогательная функция вычисления удобного шага сетки (как в Desmos)
 static void calculateGridStep(double pixelsPerUnit, double &mainStep, double &subStep, int &decimals)
 {

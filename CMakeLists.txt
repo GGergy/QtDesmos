@@ -18,6 +18,8 @@ set(PROJECT_SOURCES
         mainwindow.h
         graphview.h
         graphview.cpp
+        colorselector.h
+        colorselector.cpp
         mainwindow.ui
 )
 
