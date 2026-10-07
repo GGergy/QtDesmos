@@ -2,6 +2,10 @@
 #include <QPainter>
 #include <QWheelEvent>
 #include <QFontMetrics>
+#include <QInputDialog>
+#include <QGraphicsTextItem>
+#include <QMenu>
+#include <QPointer>
 #include <cmath>
 
 GraphView::GraphView(QWidget *parent)
@@ -50,9 +54,23 @@ void GraphView::wheelEvent(QWheelEvent *event)
         }
     }
 
+    // Порог масштаба (например, 0.2):
+    // Если отдалить дальше этого значения — текст скрывается
+    bool isVisible = (currentScale >= minScaleThreshold);
+
+    // Проходим по всем элементам сцены и обновляем только текстовые
+    const auto itemsList = scene()->items();
+    for (QGraphicsItem *item : std::as_const(itemsList)) {
+        if (auto textItem = dynamic_cast<QGraphicsTextItem*>(item)) {
+            textItem->setVisible(isVisible);
+        }
+    }
+
     // Игнорируем дальнейшую обработку события
     event->accept();
 }
+
+
 // Вспомогательная функция вычисления удобного шага сетки (как в Desmos)
 static void calculateGridStep(double pixelsPerUnit, double &mainStep, double &subStep, int &decimals)
 {
@@ -260,6 +278,70 @@ void GraphView::drawBackground(QPainter *painter, const QRectF &rect)
                         fm.height());
         painter->drawText(zeroRect, Qt::AlignCenter, zeroText);
     }
-
     painter->restore();
+}
+
+
+void GraphView::mousePressEvent(QMouseEvent *event)
+{
+    // Проверяем, что нажата именно Правая Кнопка Мыши
+    if (event->button() == Qt::RightButton) {
+        // Получаем координаты клика в системе координат сцены (математические/сценическое пространство)
+        QPointF scenePos = mapToScene(event->pos());
+
+        qDebug() << "Нажата ПКМ в окне:" << event->pos() << "| На сцене:" << scenePos;
+
+        // Проверяем, не кликнули ли мы по уже существующему тексту
+        QGraphicsItem *clickedItem = scene()->itemAt(scenePos, transform());
+        auto textItem = qgraphicsitem_cast<QGraphicsTextItem*>(clickedItem);
+
+        if (textItem) {
+            // Если кликнули по существующему тексту — показываем меню удаления
+            QMenu contextMenu;
+            QAction *deleteAction = contextMenu.addAction("Remove text");
+
+            QAction *selected = contextMenu.exec(event->globalPosition().toPoint());
+            if (selected == deleteAction) {
+                delete textItem;                 // Удаляем со сцены
+            }
+            event->accept();
+            return;
+        }
+
+        QMenu contextMenu;
+        QAction *addAction = contextMenu.addAction("Add text");
+        QAction *selected = contextMenu.exec(event->globalPosition().toPoint());
+
+        if (selected == addAction) {
+            bool ok;
+            QString text = QInputDialog::getText(this, "Text input", QString("Text on point (%1, %2)?").arg(scenePos.x()).arg(-scenePos.y()), QLineEdit::Normal, "", &ok);
+            if (ok && !text.isEmpty()) {
+                addCaption(text, scenePos);
+            }
+        }
+
+        // Отмечаем событие как обработанное
+        event->accept();
+        return;
+    }
+
+    // Обязательно вызываем базовую реализацию для левой кнопки и других событий (чтобы работало перетаскивание сцены)
+    QGraphicsView::mousePressEvent(event);
+}
+
+
+void GraphView::addCaption(QString text, QPointF pos){
+    QGraphicsTextItem *textItem = scene()->addText(text);
+
+    // 1. Игнорируем масштаб сцены
+    textItem->setFlag(QGraphicsItem::ItemIgnoresTransformations, true);
+
+    // 2. Устанавливаем точные координаты сцены (без математических вычитаний)
+    textItem->setPos(pos);
+
+    // 3. Вычисляем смещение в экранных пикселях и центрируем локально
+    QRectF rect = textItem->boundingRect();
+    textItem->setTransform(QTransform::fromTranslate(-rect.width() / 2.0, -rect.height() / 2.0));
+
+    textItem->setVisible(transform().m11() >= minScaleThreshold);
 }

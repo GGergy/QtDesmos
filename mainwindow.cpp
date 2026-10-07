@@ -119,6 +119,23 @@ void MainWindow::buildJSON(QString savePath){
     }
 
     root["functions"] = functArr;
+
+    QJsonArray captionsArr;
+    const auto textList = ui->graphView->scene()->items();
+    for (QGraphicsItem *item : std::as_const(textList)) {
+        if (auto textItem = dynamic_cast<QGraphicsTextItem*>(item)) {
+            QJsonObject cap;
+            QJsonObject point;
+            cap["text"] = textItem->toPlainText();
+            point["x"] = textItem->x();
+            point["y"] = textItem->y();
+            cap["pos"] = point;
+            captionsArr.append(cap);
+        }
+    }
+
+    root["captions"] = captionsArr;
+
     QJsonDocument doc(root);
 
     QFile file(savePath);
@@ -202,9 +219,23 @@ void MainWindow::importData(QString filePath){
                 }
             }
         }
+
+        const auto textList = ui->graphView->scene()->items();
+        for (QGraphicsItem *item : std::as_const(textList)) {
+            if (auto textItem = dynamic_cast<QGraphicsTextItem*>(item)) {
+                delete textItem;
+            }
+        }
+
+        QJsonArray captionsArr = rootObject["captions"].toArray();
+        qDebug() << "captions: " << captionsArr.count();
+        for (int i = 0; i < captionsArr.count(); ++i){
+            QJsonObject caption = captionsArr[i].toObject();
+            QJsonObject pos = caption["pos"].toObject();
+            ui->graphView->addCaption(caption["text"].toString(), QPointF(pos["x"].toDouble(), pos["y"].toDouble()));
+        }
     }
 }
-
 
 void MainWindow::on_savePNG_triggered() {
     QMessageBox::warning(
