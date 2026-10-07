@@ -21,6 +21,8 @@ set(PROJECT_SOURCES
         colorselector.h
         colorselector.cpp
         mainwindow.ui
+        resources.qrc
+        resources/app_icon.ico
 )
 
 if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
@@ -61,6 +63,12 @@ set_target_properties(nonDesmos PROPERTIES
     MACOSX_BUNDLE TRUE
     WIN32_EXECUTABLE TRUE
 )
+
+if(WIN32)
+    set_source_files_properties(resources/app_icon.ico PROPERTIES
+        HEADER_FILE_ONLY OFF
+    )
+endif()
 
 include(GNUInstallDirs)
 install(TARGETS nonDesmos
