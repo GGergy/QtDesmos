@@ -3,18 +3,29 @@
 #include <QVector>
 #include <QMessageBox>
 #include <QGraphicsScene>
+#include <QFileDialog>
+#include <QStandardPaths>
+#include <QFile>
+#include <QTextStream>
+#include <QJsonObject>
+#include <QJsonArray>
+#include <QJsonDocument>
+
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
+    setWindowTitle("Nikitosmos"); // Меняем заголовок окна
+
     // Создаем бесконечную сцену
     QGraphicsScene *scene = new QGraphicsScene(this);
     scene->setSceneRect(-5000, -5000, 10000, 10000); // Размеры виртуальной сцены
 
     ui->graphView->setScene(scene);
     ui->graphView->centerOn(0, 0); // Центрируем координатную сетку
+    ui->graphView->scale(25, 25); // Зум до "радиуса" 10
 
     functionInputs = {ui->func_1};
 
@@ -40,7 +51,7 @@ void MainWindow::on_addFunc_clicked() {
     if (functionInputs.size() >= MAX_INPUTS) {
         QMessageBox::warning(
             this,
-            "Превышен лимит",
+            "Reached limit",
             QString("Reached maximum number of inputs: %1").arg(MAX_INPUTS)
             );
         return; // Прерываем создание нового поля
@@ -65,3 +76,141 @@ void MainWindow::on_addFunc_clicked() {
     });
 }
 
+
+void MainWindow::on_saveJSON_triggered(){
+    QString defaultPath = QDir(QStandardPaths::writableLocation(QStandardPaths::DownloadLocation)).filePath("save.json");
+    qDebug() << "called json export";
+    QString fileName = QFileDialog::getSaveFileName(
+        this, // родительский виджет
+        "Save as", // заголовок
+        defaultPath, // начальная директория
+        "json file (*.json)" // фильтр файлов
+        );
+
+    if (fileName.isEmpty()) {
+        return;
+    }
+    qDebug() << "Выбранный путь:" << fileName;
+    buildJSON(fileName);
+}
+
+
+void MainWindow::buildJSON(QString savePath){
+    QJsonObject root;
+    QJsonArray functArr;
+    for (int row = 0; row < ui->InputLt->rowCount(); ++row) {
+        QLayoutItem *labelItem = ui->InputLt->itemAt(row, QFormLayout::LabelRole);
+        QLayoutItem *fieldItem = ui->InputLt->itemAt(row, QFormLayout::FieldRole);
+
+        if (!labelItem || !fieldItem) continue;
+
+        auto *input = qobject_cast<QLineEdit*>(labelItem->widget());
+        auto *selector = qobject_cast<ColorSelector*>(fieldItem->widget());
+
+        if (input && selector) {
+            QString expr = input->text().trimmed();
+            if (expr.isEmpty()) continue; // Пропускаем пустые поля
+
+            QJsonObject func;
+            func["expr"] = expr;
+            func["color"] = selector->color().name();
+            functArr.append(func);
+        }
+    }
+
+    root["functions"] = functArr;
+    QJsonDocument doc(root);
+
+    QFile file(savePath);
+    if (file.open(QIODevice::WriteOnly)) {
+        file.write(doc.toJson(QJsonDocument::Indented));
+        file.close();
+        qDebug() << "JSON успешно сохранен!";
+    } else {
+        qWarning() << "Не удалось открыть файл для записи:" << savePath;
+    }
+}
+
+
+
+void MainWindow::on_importJSON_triggered()
+{
+    QString fileName = QFileDialog::getOpenFileName(
+        this, // родительский виджет
+        "Open", // заголовок
+        QStandardPaths::writableLocation(QStandardPaths::DownloadLocation), // начальная директория
+        "json file (*.json)" // фильтр файлов
+        );
+
+    if (fileName.isEmpty()) {
+        // Пользователь отменил выбор
+        return;
+    }
+    importData(fileName);
+}
+
+
+void MainWindow::importData(QString filePath){
+    QFile file(filePath);
+    if (!file.open(QIODevice::ReadOnly)) {
+        qWarning() << "Не удалось открыть файл для чтения";
+        return;
+    }
+
+    QByteArray data = file.readAll();
+    file.close();
+
+    // Парсим JSON из байтового массива
+    QJsonParseError error;
+    QJsonDocument doc = QJsonDocument::fromJson(data, &error);
+
+    if (error.error != QJsonParseError::NoError) {
+        qWarning() << "Ошибка парсинга JSON:" << error.errorString();
+        return;
+    }
+
+    // Проверяем, что корень является объектом
+    if (doc.isObject()) {
+        QJsonObject rootObject = doc.object();
+
+
+        // Извлекаем массив функций
+        QJsonArray functionsArray = rootObject["functions"].toArray();
+        while (ui->InputLt->rowCount() < functionsArray.count() && ui->InputLt->rowCount() < MAX_INPUTS) {
+            on_addFunc_clicked(); // Добавляем строки, если в UI их меньше, чем в JSON
+        }
+
+        // 2. Заполняем данными
+        for (int i = 0; i < ui->InputLt->rowCount(); ++i) {
+            QLayoutItem *labelItem = ui->InputLt->itemAt(i, QFormLayout::LabelRole);
+            QLayoutItem *fieldItem = ui->InputLt->itemAt(i, QFormLayout::FieldRole);
+
+            if (!labelItem || !fieldItem) continue;
+
+            auto *input = qobject_cast<QLineEdit*>(labelItem->widget());
+            auto *selector = qobject_cast<ColorSelector*>(fieldItem->widget());
+
+            if (input && selector) {
+                if (i < functionsArray.count()) {
+                    QJsonObject funcObj = functionsArray[i].toObject();
+                    input->setText(funcObj["expr"].toString());
+                    selector->setColor(QColor(funcObj["color"].toString()));
+                } else {
+                    // Если в JSON элементов меньше, чем сейчас строк на экране — очищаем лишние
+                    input->clear();
+                    selector->setdefault();
+                }
+            }
+        }
+    }
+}
+
+
+void MainWindow::on_savePNG_triggered() {
+    QMessageBox::warning(
+        this,
+        "Not supported",
+        QString("PNG export temporary not supported. Use screenshot instead")
+        );
+    return;
+}

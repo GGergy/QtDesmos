@@ -23,11 +23,20 @@ private slots:
 
     void on_addFunc_clicked();
 
+    void on_saveJSON_triggered();
+
+    void on_importJSON_triggered();
+
+    void on_savePNG_triggered();
+
 private:
     Ui::MainWindow *ui;
     QVector<QLineEdit*> functionInputs;
-    static constexpr int MAX_INPUTS = 14;
+    static constexpr int MAX_INPUTS = 15;
 
     void onFunctionChanged(int index, const QString &expression);
+    void buildJSON(QString savePath);
+    void extracted(QJsonArray &functionsArray);
+    void importData(QString filePath);
 };
 #endif // MAINWINDOW_H

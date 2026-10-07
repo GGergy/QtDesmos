@@ -9,7 +9,6 @@ class GraphView : public QGraphicsView
     Q_OBJECT
 public:
     explicit GraphView(QWidget *parent = nullptr);
-
 protected:
     // Отрисовка координатной сетки и осей
     void drawBackground(QPainter *painter, const QRectF &rect) override;

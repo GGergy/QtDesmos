@@ -35,8 +35,8 @@ void GraphView::wheelEvent(QWheelEvent *event)
     const double currentScale = transform().m11();
 
     // Задаем разумные границы масштабирования
-    const double minScale = 1e-8; // Максимальное отдаление
-    const double maxScale = 1e7;  // Максимальное приближение
+    const double minScale = 1e-6; // Максимальное отдаление
+    const double maxScale = 1e8;  // Максимальное приближение
 
     if (event->angleDelta().y() > 0) {
         // Приближение: проверяем, не превысим ли верхний предел
