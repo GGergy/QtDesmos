@@ -1,6 +1,8 @@
 #ifndef GRAPHVIEW_H
 #define GRAPHVIEW_H
 
+#include "customtextitem.h"
+
 #include <QGraphicsView>
 #include <QWheelEvent>
 #include <QPointer>
@@ -13,7 +15,7 @@ class GraphView : public QGraphicsView
 public:
     explicit GraphView(QWidget *parent = nullptr);
 
-    void addCaption(QString text, QPointF pos);
+    CustomTextItem *addCaption(QString text, QPointF pos);
 
 protected:
     // Отрисовка координатной сетки и осей
@@ -23,6 +25,8 @@ protected:
     void wheelEvent(QWheelEvent *event) override;
 
     void mousePressEvent(QMouseEvent *event) override;
+    void showTextContextMenu(CustomTextItem *textItem, const QPoint &globalPos);
+    void addNewTextDialog(const QPointF &scenePos);
 
 private:
     double m_gridStep = 50.0; // Базовый шаг сетки в пикселях

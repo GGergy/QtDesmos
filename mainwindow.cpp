@@ -1,5 +1,7 @@
 #include "mainwindow.h"
+#include "customtextitem.h"
 #include "./ui_mainwindow.h"
+
 #include <QVector>
 #include <QMessageBox>
 #include <QGraphicsScene>
@@ -123,13 +125,17 @@ void MainWindow::buildJSON(QString savePath){
     QJsonArray captionsArr;
     const auto textList = ui->graphView->scene()->items();
     for (QGraphicsItem *item : std::as_const(textList)) {
-        if (auto textItem = dynamic_cast<QGraphicsTextItem*>(item)) {
+        if (auto textItem = dynamic_cast<CustomTextItem*>(item)) {
             QJsonObject cap;
+            QJsonObject capFont;
             QJsonObject point;
             cap["text"] = textItem->toPlainText();
             point["x"] = textItem->x();
             point["y"] = textItem->y();
             cap["pos"] = point;
+            capFont["color"] = textItem->textColor().name();
+            capFont["size"] = textItem->fontSize();
+            cap["font"] = capFont;
             captionsArr.append(cap);
         }
     }
@@ -222,7 +228,7 @@ void MainWindow::importData(QString filePath){
 
         const auto textList = ui->graphView->scene()->items();
         for (QGraphicsItem *item : std::as_const(textList)) {
-            if (auto textItem = dynamic_cast<QGraphicsTextItem*>(item)) {
+            if (auto textItem = dynamic_cast<CustomTextItem*>(item)) {
                 delete textItem;
             }
         }
@@ -231,8 +237,11 @@ void MainWindow::importData(QString filePath){
         qDebug() << "captions: " << captionsArr.count();
         for (int i = 0; i < captionsArr.count(); ++i){
             QJsonObject caption = captionsArr[i].toObject();
+            QJsonObject font = caption["font"].toObject();
             QJsonObject pos = caption["pos"].toObject();
-            ui->graphView->addCaption(caption["text"].toString(), QPointF(pos["x"].toDouble(), pos["y"].toDouble()));
+            CustomTextItem *textItem = ui->graphView->addCaption(caption["text"].toString(), QPointF(pos["x"].toDouble(), pos["y"].toDouble()));
+            textItem->setTextColor(font["color"].toString());
+            textItem->setFontSize(font["size"].toInt());
         }
     }
 }

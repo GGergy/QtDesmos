@@ -1,11 +1,14 @@
 #include "graphview.h"
+#include "customtextitem.h"
+
 #include <QPainter>
 #include <QWheelEvent>
 #include <QFontMetrics>
 #include <QInputDialog>
-#include <QGraphicsTextItem>
 #include <QMenu>
 #include <QPointer>
+#include <QColorDialog>
+
 #include <cmath>
 
 GraphView::GraphView(QWidget *parent)
@@ -61,7 +64,7 @@ void GraphView::wheelEvent(QWheelEvent *event)
     // Проходим по всем элементам сцены и обновляем только текстовые
     const auto itemsList = scene()->items();
     for (QGraphicsItem *item : std::as_const(itemsList)) {
-        if (auto textItem = dynamic_cast<QGraphicsTextItem*>(item)) {
+        if (auto textItem = dynamic_cast<CustomTextItem*>(item)) {
             textItem->setVisible(isVisible);
         }
     }
@@ -286,38 +289,18 @@ void GraphView::mousePressEvent(QMouseEvent *event)
 {
     // Проверяем, что нажата именно Правая Кнопка Мыши
     if (event->button() == Qt::RightButton) {
-        // Получаем координаты клика в системе координат сцены (математические/сценическое пространство)
         QPointF scenePos = mapToScene(event->pos());
 
-        qDebug() << "Нажата ПКМ в окне:" << event->pos() << "| На сцене:" << scenePos;
-
-        // Проверяем, не кликнули ли мы по уже существующему тексту
+        // Поиск текста под курсором
         QGraphicsItem *clickedItem = scene()->itemAt(scenePos, transform());
-        auto textItem = qgraphicsitem_cast<QGraphicsTextItem*>(clickedItem);
+        auto textItem = dynamic_cast<CustomTextItem*>(clickedItem);
 
         if (textItem) {
-            // Если кликнули по существующему тексту — показываем меню удаления
-            QMenu contextMenu;
-            QAction *deleteAction = contextMenu.addAction("Remove text");
-
-            QAction *selected = contextMenu.exec(event->globalPosition().toPoint());
-            if (selected == deleteAction) {
-                delete textItem;                 // Удаляем со сцены
-            }
-            event->accept();
-            return;
-        }
-
-        QMenu contextMenu;
-        QAction *addAction = contextMenu.addAction("Add text");
-        QAction *selected = contextMenu.exec(event->globalPosition().toPoint());
-
-        if (selected == addAction) {
-            bool ok;
-            QString text = QInputDialog::getText(this, "Text input", QString("Text on point (%1, %2)?").arg(scenePos.x()).arg(-scenePos.y()), QLineEdit::Normal, "", &ok);
-            if (ok && !text.isEmpty()) {
-                addCaption(text, scenePos);
-            }
+            // Вызываем меню редактирования для существующего текста
+            showTextContextMenu(textItem, event->globalPosition().toPoint());
+        } else {
+            // Создаем новый текст
+            addNewTextDialog(scenePos);
         }
 
         // Отмечаем событие как обработанное
@@ -330,18 +313,92 @@ void GraphView::mousePressEvent(QMouseEvent *event)
 }
 
 
-void GraphView::addCaption(QString text, QPointF pos){
-    QGraphicsTextItem *textItem = scene()->addText(text);
+void GraphView::showTextContextMenu(CustomTextItem *textItem, const QPoint &globalPos)
+{
+    // --- Контекстное меню для существующего текста ---
+    QMenu contextMenu(this);
 
-    // 1. Игнорируем масштаб сцены
-    textItem->setFlag(QGraphicsItem::ItemIgnoresTransformations, true);
+    QAction *editTextAction   = contextMenu.addAction("Изменить текст");
+    QAction *changeColorAction = contextMenu.addAction("Изменить цвет");
+    QAction *changeSizeAction  = contextMenu.addAction("Задать размер шрифта");
 
-    // 2. Устанавливаем точные координаты сцены (без математических вычитаний)
-    textItem->setPos(pos);
+    contextMenu.addSeparator();
+    QAction *deleteAction = contextMenu.addAction("Удалить");
 
-    // 3. Вычисляем смещение в экранных пикселях и центрируем локально
-    QRectF rect = textItem->boundingRect();
-    textItem->setTransform(QTransform::fromTranslate(-rect.width() / 2.0, -rect.height() / 2.0));
+    // Вызываем меню в точке курсора
+    QAction *selected = contextMenu.exec(globalPos);
 
-    textItem->setVisible(transform().m11() >= minScaleThreshold);
+    if (selected == editTextAction) {
+        bool ok;
+        QString newText = QInputDialog::getText(
+            this,
+            "Редактирование метки",
+            "Введите новый текст:",
+            QLineEdit::Normal,
+            textItem->toPlainText(),
+            &ok
+            );
+
+        if (ok && !newText.isEmpty()) {
+            // Метод setText сам обновит текст и пересчитает центрирование!
+            textItem->setText(newText);
+        }
+    }
+    else if (selected == changeColorAction) {
+        QColor newColor = QColorDialog::getColor(
+            textItem->textColor(),
+            this,
+            "Выберите цвет текста"
+            );
+        if (newColor.isValid()) {
+            textItem->setTextColor(newColor);
+        }
+    }
+    else if (selected == changeSizeAction) {
+        bool ok;
+        // getInt автоматически валидирует ввод только на положительные целые числа
+        int newSize = QInputDialog::getInt(
+            this,
+            "Размер шрифта",
+            "Введите размер шрифта (pt):",
+            textItem->fontSize(), // Значение по умолчанию (текущий размер)
+            7,                // Минимальное значение (positive integer)
+            50,              // Максимальное значение
+            1,                // Шаг
+            &ok
+            );
+
+        if (ok) {
+            textItem->setFontSize(newSize);
+        }
+    }
+    else if (selected == deleteAction) {
+        delete textItem; // Безопасное удаление
+    }
+}
+
+void GraphView::addNewTextDialog(const QPointF &scenePos)
+{
+    bool ok;
+    QString text = QInputDialog::getText(
+        this, "Добавление метки",
+        QString("Текст в точке (%1, %2):").arg(scenePos.x()).arg(scenePos.y()),
+        QLineEdit::Normal, "", &ok
+        );
+
+    if (ok && !text.isEmpty()) {
+        addCaption(text, scenePos);
+    }
+}
+
+
+CustomTextItem *GraphView::addCaption(QString text, QPointF pos){
+    CustomTextItem *newItem = new CustomTextItem(text);
+
+    scene()->addItem(newItem);
+    newItem->setPos(pos); // Элемент САМ отцентрируется относительно этой точки!
+
+    newItem->setVisible(transform().m11() >= 0.2);
+
+    return newItem;
 }
