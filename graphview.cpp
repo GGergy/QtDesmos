@@ -321,6 +321,7 @@ void GraphView::showTextContextMenu(CustomTextItem *textItem, const QPoint &glob
     QAction *editTextAction   = contextMenu.addAction("Изменить текст");
     QAction *changeColorAction = contextMenu.addAction("Изменить цвет");
     QAction *changeSizeAction  = contextMenu.addAction("Задать размер шрифта");
+    QAction *changePosAction  = contextMenu.addAction("Изменить координаты");
 
     contextMenu.addSeparator();
     QAction *deleteAction = contextMenu.addAction("Удалить");
@@ -354,6 +355,33 @@ void GraphView::showTextContextMenu(CustomTextItem *textItem, const QPoint &glob
             textItem->setTextColor(newColor);
         }
     }
+    else if (selected == changePosAction) {
+        bool okX, okY;
+        QPointF currentPos = textItem->pos();
+
+        // Диалог ввода координаты X
+        double newX = QInputDialog::getDouble(
+            this, "Координата X",
+            "Введите X:",
+            currentPos.x(),
+            -1e9, 1e9, 2, &okX
+            );
+
+        if (okX) {
+            // Диалог ввода координаты Y
+            double newY = QInputDialog::getDouble(
+                this, "Координата Y",
+                "Введите Y:",
+                -currentPos.y(),
+                -1e9, 1e9, 2, &okY
+                );
+
+            if (okY) {
+                // Изменяем позицию — элемент автоматически останется отцентрированным
+                textItem->setPos(newX, -newY);
+            }
+        }
+    }
     else if (selected == changeSizeAction) {
         bool ok;
         // getInt автоматически валидирует ввод только на положительные целые числа
@@ -382,7 +410,7 @@ void GraphView::addNewTextDialog(const QPointF &scenePos)
     bool ok;
     QString text = QInputDialog::getText(
         this, "Добавление метки",
-        QString("Текст в точке (%1, %2):").arg(scenePos.x()).arg(scenePos.y()),
+        QString("Текст в точке (%1, %2):").arg(scenePos.x()).arg(-scenePos.y()),
         QLineEdit::Normal, "", &ok
         );
 
