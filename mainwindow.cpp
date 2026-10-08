@@ -158,6 +158,19 @@ void MainWindow::buildJSON(QString savePath){
 
 void MainWindow::on_importJSON_triggered()
 {
+    QMessageBox::StandardButton reply = QMessageBox::warning(
+        this,
+        "Предупреждение",
+        "Это удалит текущие изменения. Вы действительно хотите продолжить?",
+        QMessageBox::Ok | QMessageBox::Cancel,
+        QMessageBox::Cancel // Кнопка по умолчанию при нажатии Enter
+        );
+
+    // Если пользователь нажал Cancel или закрыл окно — прерываем операцию
+    if (reply != QMessageBox::Ok) {
+        return;
+    }
+
     QString fileName = QFileDialog::getOpenFileName(
         this, // родительский виджет
         "Open", // заголовок

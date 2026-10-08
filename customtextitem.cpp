@@ -82,12 +82,47 @@ void CustomTextItem::hoverLeaveEvent(QGraphicsSceneHoverEvent *event)
 
 void CustomTextItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget)
 {
+    QRectF rect = boundingRect();
     // 1. Отрисовка подсветки при наведении
     if (m_isHovered) {
         painter->save();
+
+        // Рисуем пунктирную рамку
         painter->setPen(QPen(m_hoverBorderColor, 1, Qt::DashLine));
         painter->setBrush(QColor(0, 120, 215, 20));
-        painter->drawRect(boundingRect().adjusted(0.5, 0.5, -0.5, -0.5));
+        painter->drawRect(rect.adjusted(0.5, 0.5, -0.5, -0.5));
+
+        // Формируем текст координат (x, y)
+        QString posStr = QString("(%1, %2)")
+                             .arg(pos().x(), 0, 'f', 1)
+                             .arg(-pos().y(), 0, 'f', 1);
+
+        // Настраиваем шрифт для подсказки
+        QFont toolTipFont("sans-serif", 8);
+        painter->setFont(toolTipFont);
+        QFontMetricsF toolTipFm(toolTipFont);
+
+        // Рассчитываем размер и позицию плашки под текстом
+        qreal tooltipWidth = toolTipFm.horizontalAdvance(posStr) + 8;
+        qreal tooltipHeight = toolTipFm.height() + 2;
+
+        // Позиционируем плашку снизу по центру прямоугольника
+        QRectF tooltipRect(
+            rect.center().x() - tooltipWidth / 2.0,
+            rect.bottom() + 4,
+            tooltipWidth,
+            tooltipHeight
+            );
+
+        // Рисуем плашку с координатами
+        painter->setPen(Qt::NoPen);
+        painter->setBrush(QColor(40, 40, 40, 220)); // Темная полупрозрачная подложка
+        painter->drawRoundedRect(tooltipRect, 3, 3);
+
+        // Рисуем текст координат белым цветом
+        painter->setPen(Qt::white);
+        painter->drawText(tooltipRect, Qt::AlignCenter, posStr);
+
         painter->restore();
     }
 
