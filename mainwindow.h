@@ -36,7 +36,6 @@ private:
 
     void onFunctionChanged(int index, const QString &expression);
     void buildJSON(QString savePath);
-    void extracted(QJsonArray &functionsArray);
     void importData(QString filePath);
 };
 #endif // MAINWINDOW_H

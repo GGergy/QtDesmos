@@ -2,18 +2,17 @@
 #include "customtextitem.h"
 #include "./ui_mainwindow.h"
 
-#include <QVector>
 #include <QMessageBox>
 #include <QGraphicsScene>
 #include <QFileDialog>
 #include <QStandardPaths>
 #include <QFile>
-#include <QTextStream>
 #include <QJsonObject>
 #include <QJsonArray>
 #include <QJsonDocument>
 
 
+// Конструктор главного окна
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::MainWindow)
@@ -25,63 +24,71 @@ MainWindow::MainWindow(QWidget *parent)
     QGraphicsScene *scene = new QGraphicsScene(this);
     scene->setSceneRect(-5000, -5000, 10000, 10000); // Размеры виртуальной сцены
 
-    ui->graphView->setScene(scene);
+    ui->graphView->setScene(scene); // Привязываем сцену
     ui->graphView->centerOn(0, 0); // Центрируем координатную сетку
     ui->graphView->scale(25, 25); // Зум до "радиуса" 10
 
-    functionInputs = {ui->func_1};
+    functionInputs = {ui->func_1}; // Инициализируем вектор полей ввода
 
+    // Привязка начального поля ввоода к обработчику
     connect(ui->func_1, &QLineEdit::editingFinished, this, [this]() {
         this->onFunctionChanged(0, ui->func_1->text());
     }); // Передаем индекс поля и новый текст
 }
 
+
+// Деструктор, освобождаем ui
 MainWindow::~MainWindow()
 {
     delete ui;
 }
 
+
 // Единый обработчик изменений для любого поля ввода
-void MainWindow::onFunctionChanged(int index, const QString &expression) {
+void MainWindow::onFunctionChanged(int index, const QString &expression)
+{
     qDebug() << "Изменилась функция №" << index << ":" << expression;
-    // Логика обновления графика № index в вашем QGraphicsView
 }
 
-void MainWindow::on_addFunc_clicked() {
 
-    // 0. Проверяем достижение лимита
+// Обработка нажатия на кнопку добавления поля ввода
+void MainWindow::on_addFunc_clicked()
+{
+    // Проверяем достижение лимита
     if (functionInputs.size() >= MAX_INPUTS) {
         QMessageBox::warning(
             this,
             "Reached limit",
             QString("Reached maximum number of inputs: %1").arg(MAX_INPUTS)
             );
-        return; // Прерываем создание нового поля
+        return;
     }
-    // 1. Создаем новое поле ввода
-    QLineEdit *newInput = new QLineEdit(this);
-    ColorSelector *newColor = new ColorSelector(this);
+
+    // Создаем новое поле ввода
+    QLineEdit *newInput = new QLineEdit(this); // Текстовый ввод
+    ColorSelector *newColor = new ColorSelector(this); // Соответствующий виджет изменения цвета
     newInput->setPlaceholderText(QString("f%1(x)").arg(functionInputs.size() + 1));
 
-    // 2. Добавляем в вектор
+    // Добавляем в вектор
     int newIndex = functionInputs.size();
     functionInputs.append(newInput);
 
-    // 3. Вставляем в ваш QVBoxLayout левой панели (например, ui->verticalLayout_Inputs)
-    // Вставляем перед последним элементом (Spacer'ом)
+    // Вставляем в лайаут для полей ввода на последнее место
     ui->InputLt->addRow(newInput, newColor);
 
-
-    // 4. Подключаем сигнал
+    // Подключаем обработчик на сигнал окончания редактирования
     connect(newInput, &QLineEdit::editingFinished, this, [this, newIndex]() {
         onFunctionChanged(newIndex, this->functionInputs[newIndex]->text());
     });
 }
 
 
-void MainWindow::on_saveJSON_triggered(){
+// Обработка Save as JSON
+void MainWindow::on_saveJSON_triggered()
+{
+    // Путь по умолчанию - Загрузки/save.json
     QString defaultPath = QDir(QStandardPaths::writableLocation(QStandardPaths::DownloadLocation)).filePath("save.json");
-    qDebug() << "called json export";
+    // Диалог выбора имени файла для сохранения
     QString fileName = QFileDialog::getSaveFileName(
         this, // родительский виджет
         "Save as", // заголовок
@@ -90,45 +97,76 @@ void MainWindow::on_saveJSON_triggered(){
         );
 
     if (fileName.isEmpty()) {
+        // Отмена, если имя файла не выбрано
         return;
     }
     qDebug() << "Выбранный путь:" << fileName;
+    // Запуск экспорта
     buildJSON(fileName);
 }
 
 
-void MainWindow::buildJSON(QString savePath){
-    QJsonObject root;
-    QJsonArray functArr;
+// Экспорт натроек в JSON
+void MainWindow::buildJSON(QString savePath)
+{
+    QJsonObject root; // Корневой объект
+    QJsonArray functArr; // Массив функций
+    QJsonArray captionsArr; // Массив подписей
+
+    // Проходим по всем строкам лайаута с полями ввода
     for (int row = 0; row < ui->InputLt->rowCount(); ++row) {
-        QLayoutItem *labelItem = ui->InputLt->itemAt(row, QFormLayout::LabelRole);
-        QLayoutItem *fieldItem = ui->InputLt->itemAt(row, QFormLayout::FieldRole);
+        QLayoutItem *labelItem = ui->InputLt->itemAt(row, QFormLayout::LabelRole); // Виджет слева
+        QLayoutItem *fieldItem = ui->InputLt->itemAt(row, QFormLayout::FieldRole); // Виджет справа
 
-        if (!labelItem || !fieldItem) continue;
+        if (!labelItem || !fieldItem) continue; // Обработка ошибок
 
-        auto *input = qobject_cast<QLineEdit*>(labelItem->widget());
-        auto *selector = qobject_cast<ColorSelector*>(fieldItem->widget());
+        auto *input = qobject_cast<QLineEdit*>(labelItem->widget()); // Приводим левый виджет к QLineEdit
+        auto *selector = qobject_cast<ColorSelector*>(fieldItem->widget()); // Приводим левый виджет к ColorSelector
 
         if (input && selector) {
-            QString expr = input->text().trimmed();
+            // Для каждой функции сохраняем текст формулы и выбранный цвет графика
+            /* Пример:
+                {
+                    "color": "#e6194b",
+                    "expr": "234324"
+                }
+             */
+
+            QString expr = input->text().trimmed(); // Получаем текст и обрезаем пробелы с краев
             if (expr.isEmpty()) continue; // Пропускаем пустые поля
 
             QJsonObject func;
+
             func["expr"] = expr;
             func["color"] = selector->color().name();
             functArr.append(func);
         }
     }
 
-    root["functions"] = functArr;
+    root["functions"] = functArr; // Добавляем массив функций в корень
 
-    QJsonArray captionsArr;
-    const auto textList = ui->graphView->scene()->items();
+    const auto textList = ui->graphView->scene()->items(); // Список всех объектов на сцене
     for (QGraphicsItem *item : std::as_const(textList)) {
+        // dynamic_cast вернет nullptr, если объект не нужного типа
         if (auto textItem = dynamic_cast<CustomTextItem*>(item)) {
+            // Для каждого TextItem сохраняем текст подписи, координаты, цвет и размер шрифта
+            /* Пример:
+                {
+                    "font": {
+                        "color": "#55ffff",
+                        "size": 50
+                    },
+                    "pos": {
+                        "x": -1,
+                        "y": 1
+                    },
+                    "text": "QWERTY"
+                }
+             */
             QJsonObject cap;
             QJsonObject capFont;
             QJsonObject point;
+
             cap["text"] = textItem->toPlainText();
             point["x"] = textItem->x();
             point["y"] = textItem->y();
@@ -140,12 +178,14 @@ void MainWindow::buildJSON(QString savePath){
         }
     }
 
-    root["captions"] = captionsArr;
+    root["captions"] = captionsArr; // Добавляем массив подписей в корень
 
-    QJsonDocument doc(root);
+    QJsonDocument doc(root); // Финальный документ
 
+    // Запись сформированного документа в выбранный файл
     QFile file(savePath);
     if (file.open(QIODevice::WriteOnly)) {
+        // QJsonDocument::Indented - красивое форматирование
         file.write(doc.toJson(QJsonDocument::Indented));
         file.close();
         qDebug() << "JSON успешно сохранен!";
@@ -155,9 +195,10 @@ void MainWindow::buildJSON(QString savePath){
 }
 
 
-
+// Обработка Open From JSON
 void MainWindow::on_importJSON_triggered()
 {
+    // Вывод предупреждения о перезаписи настроек
     QMessageBox::StandardButton reply = QMessageBox::warning(
         this,
         "Предупреждение",
@@ -171,23 +212,28 @@ void MainWindow::on_importJSON_triggered()
         return;
     }
 
+    // Диалог выбора имени файла с сохранением
     QString fileName = QFileDialog::getOpenFileName(
         this, // родительский виджет
         "Open", // заголовок
-        QStandardPaths::writableLocation(QStandardPaths::DownloadLocation), // начальная директория
-        "json file (*.json)" // фильтр файлов
+        QStandardPaths::writableLocation(QStandardPaths::DownloadLocation), // директория по умолчанию - Загрузки
+        "json file (*.json)" // ильтр файлов
         );
 
     if (fileName.isEmpty()) {
         // Пользователь отменил выбор
         return;
     }
+    // Запуск импорта
     importData(fileName);
 }
 
 
-void MainWindow::importData(QString filePath){
+// Импорт настроек из JSON
+void MainWindow::importData(QString filePath)
+{
     QFile file(filePath);
+    // Обработка ошибки открытия файла
     if (!file.open(QIODevice::ReadOnly)) {
         qWarning() << "Не удалось открыть файл для чтения";
         return;
@@ -200,6 +246,7 @@ void MainWindow::importData(QString filePath){
     QJsonParseError error;
     QJsonDocument doc = QJsonDocument::fromJson(data, &error);
 
+    // Обработка ошибки парсинга
     if (error.error != QJsonParseError::NoError) {
         qWarning() << "Ошибка парсинга JSON:" << error.errorString();
         return;
@@ -209,14 +256,13 @@ void MainWindow::importData(QString filePath){
     if (doc.isObject()) {
         QJsonObject rootObject = doc.object();
 
-
         // Извлекаем массив функций
         QJsonArray functionsArray = rootObject["functions"].toArray();
         while (ui->InputLt->rowCount() < functionsArray.count() && ui->InputLt->rowCount() < MAX_INPUTS) {
             on_addFunc_clicked(); // Добавляем строки, если в UI их меньше, чем в JSON
         }
 
-        // 2. Заполняем данными
+        // Заполняем данными
         for (int i = 0; i < ui->InputLt->rowCount(); ++i) {
             QLayoutItem *labelItem = ui->InputLt->itemAt(i, QFormLayout::LabelRole);
             QLayoutItem *fieldItem = ui->InputLt->itemAt(i, QFormLayout::FieldRole);
@@ -239,6 +285,10 @@ void MainWindow::importData(QString filePath){
             }
         }
 
+        // Извлекаем  массив подписей
+        QJsonArray captionsArr = rootObject["captions"].toArray();
+
+        // Удаляем старые подписи
         const auto textList = ui->graphView->scene()->items();
         for (QGraphicsItem *item : std::as_const(textList)) {
             if (auto textItem = dynamic_cast<CustomTextItem*>(item)) {
@@ -246,12 +296,12 @@ void MainWindow::importData(QString filePath){
             }
         }
 
-        QJsonArray captionsArr = rootObject["captions"].toArray();
-        qDebug() << "captions: " << captionsArr.count();
+        // Создаем новые
         for (int i = 0; i < captionsArr.count(); ++i){
             QJsonObject caption = captionsArr[i].toObject();
             QJsonObject font = caption["font"].toObject();
             QJsonObject pos = caption["pos"].toObject();
+
             CustomTextItem *textItem = ui->graphView->addCaption(caption["text"].toString(), QPointF(pos["x"].toDouble(), pos["y"].toDouble()));
             textItem->setTextColor(font["color"].toString());
             textItem->setFontSize(font["size"].toInt());
@@ -259,7 +309,10 @@ void MainWindow::importData(QString filePath){
     }
 }
 
-void MainWindow::on_savePNG_triggered() {
+
+// Заглушка для экспорта в PNG
+void MainWindow::on_savePNG_triggered()
+{
     QMessageBox::warning(
         this,
         "Not supported",

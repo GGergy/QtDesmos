@@ -5,9 +5,6 @@
 
 #include <QGraphicsView>
 #include <QWheelEvent>
-#include <QPointer>
-#include <QGraphicsTextItem>
-#include <QList>
 
 class GraphView : public QGraphicsView
 {
@@ -30,7 +27,7 @@ protected:
 
 private:
     double m_gridStep = 50.0; // Базовый шаг сетки в пикселях
-    const double minScaleThreshold = 1.5;
+    const double minScaleThreshold = 1.5; // Порог отображения текста
 };
 
 #endif // GRAPHVIEW_H

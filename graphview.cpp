@@ -1,38 +1,47 @@
 #include "graphview.h"
-#include "customtextitem.h"
 
 #include <QPainter>
-#include <QWheelEvent>
-#include <QFontMetrics>
+#include <QPen>
 #include <QInputDialog>
 #include <QMenu>
-#include <QPointer>
 #include <QColorDialog>
 
 #include <cmath>
 
+
 GraphView::GraphView(QWidget *parent)
     : QGraphicsView(parent)
 {
+    // Включение сглаживания граней для графических примитивов
     setRenderHint(QPainter::Antialiasing);
+
+    // Включение сглаживания для текстовых символов и шрифтов
     setRenderHint(QPainter::TextAntialiasing);
+
+    // Установка курсора в виде ладони для перетаскивания сцены зажатием ЛКМ
     setDragMode(QGraphicsView::ScrollHandDrag);
+
+    // Привязка точки масштабирования строго к текущей позиции курсора мыши
     setTransformationAnchor(QGraphicsView::AnchorUnderMouse);
+
+    // Привязка точки изменения размера окна также к позиции курсора мыши
     setResizeAnchor(QGraphicsView::AnchorUnderMouse);
 
-    // --- ДОБАВЬТЕ ЭТИ СТРОКИ ДЛЯ УСТРАНЕНИЯ АРТЕФАКТОВ: ---
+    // ============ Устранение артефактов ============
 
-    // 1. Полная перерисовка окна при любом сдвиге/масштабе
+    // Полная перерисовка окна при любом сдвиге/масштабе
     setViewportUpdateMode(QGraphicsView::FullViewportUpdate);
 
-    // 2. Отключение двойной буферизации фона (если была включена),
-    //    чтобы сбросить фантомный кеш
+    // Отключение кэширования фона
     setCacheMode(QGraphicsView::CacheNone);
 
-    // 3. (Опционально) Включение аппаратного или более плавного оффскрин-рендеринга
+    // Уведомление Qt о том, что виджет самостоятельно закрашивает 100% своей площади
     viewport()->setAttribute(Qt::WA_OpaquePaintEvent);
+
+    // Отключение принудительной системной очистки фона операционной системой перед событием paintEvent
     viewport()->setAttribute(Qt::WA_NoSystemBackground);
 }
+
 
 void GraphView::wheelEvent(QWheelEvent *event)
 {
@@ -57,7 +66,7 @@ void GraphView::wheelEvent(QWheelEvent *event)
         }
     }
 
-    // Порог масштаба (например, 0.2):
+    // Порог масштаба
     // Если отдалить дальше этого значения — текст скрывается
     bool isVisible = (currentScale >= minScaleThreshold);
 
@@ -111,6 +120,7 @@ static void calculateGridStep(double pixelsPerUnit, double &mainStep, double &su
     }
 }
 
+
 // Форматирование числа с устранением микроошибок double
 static QString formatNumber(double value, int decimals)
 {
@@ -125,6 +135,7 @@ static QString formatNumber(double value, int decimals)
     }
     return str;
 }
+
 
 void GraphView::drawBackground(QPainter *painter, const QRectF &rect)
 {
@@ -285,10 +296,12 @@ void GraphView::drawBackground(QPainter *painter, const QRectF &rect)
 }
 
 
+// Обработка нажатий кнопок мыши
+// Вывод контекстного меню по ПКМ
 void GraphView::mousePressEvent(QMouseEvent *event)
 {
-    // Проверяем, что нажата именно Правая Кнопка Мыши
-    if (event->button() == Qt::RightButton) {
+    // Проверяем, что нажата именно Правая Кнопка Мыши и масштаб достаточен для отображения текста
+    if (transform().m11() >= minScaleThreshold && event->button() == Qt::RightButton) {
         QPointF scenePos = mapToScene(event->pos());
 
         // Поиск текста под курсором
@@ -308,7 +321,7 @@ void GraphView::mousePressEvent(QMouseEvent *event)
         return;
     }
 
-    // Обязательно вызываем базовую реализацию для левой кнопки и других событий (чтобы работало перетаскивание сцены)
+    // Вызываем базовую реализацию для левой кнопки и других событий (чтобы работало перетаскивание сцены)
     QGraphicsView::mousePressEvent(event);
 }
 
@@ -323,7 +336,7 @@ void GraphView::showTextContextMenu(CustomTextItem *textItem, const QPoint &glob
     QAction *changeSizeAction  = contextMenu.addAction("Задать размер шрифта");
     QAction *changePosAction  = contextMenu.addAction("Изменить координаты");
 
-    contextMenu.addSeparator();
+    contextMenu.addSeparator(); // Устанавливаем разделитель между действиями - полоску
     QAction *deleteAction = contextMenu.addAction("Удалить");
 
     // Вызываем меню в точке курсора
@@ -341,7 +354,6 @@ void GraphView::showTextContextMenu(CustomTextItem *textItem, const QPoint &glob
             );
 
         if (ok && !newText.isEmpty()) {
-            // Метод setText сам обновит текст и пересчитает центрирование!
             textItem->setText(newText);
         }
     }
@@ -392,7 +404,7 @@ void GraphView::showTextContextMenu(CustomTextItem *textItem, const QPoint &glob
             textItem->fontSize(), // Значение по умолчанию (текущий размер)
             7,                // Минимальное значение (positive integer)
             50,              // Максимальное значение
-            1,                // Шаг
+            1,               // Шаг
             &ok
             );
 
@@ -404,6 +416,7 @@ void GraphView::showTextContextMenu(CustomTextItem *textItem, const QPoint &glob
         delete textItem; // Безопасное удаление
     }
 }
+
 
 void GraphView::addNewTextDialog(const QPointF &scenePos)
 {
@@ -424,7 +437,7 @@ CustomTextItem *GraphView::addCaption(QString text, QPointF pos){
     CustomTextItem *newItem = new CustomTextItem(text);
 
     scene()->addItem(newItem);
-    newItem->setPos(pos); // Элемент САМ отцентрируется относительно этой точки!
+    newItem->setPos(pos);
 
     newItem->setVisible(transform().m11() >= 0.2);
 

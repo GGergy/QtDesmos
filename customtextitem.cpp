@@ -1,9 +1,6 @@
 #include "customtextitem.h"
+
 #include <QPainter>
-#include <QFontMetricsF>
-#include <QTextDocument>
-#include <QStyleOptionGraphicsItem>
-#include <QPen>
 
 
 CustomTextItem::CustomTextItem(const QString &text, QGraphicsItem *parent)

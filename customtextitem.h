@@ -2,9 +2,7 @@
 #define CUSTOMTEXTITEM_H
 
 #include <QGraphicsTextItem>
-#include <QPen>
 #include <QColor>
-#include <QFont>
 #include <QPainterPath>
 #include <QGraphicsSceneHoverEvent>
 
@@ -23,8 +21,8 @@ public:
 
     // Стилизация
     void setTextColor(const QColor &color);
-    QColor textColor() const;
 
+    QColor textColor() const;
     void setFontSize(int pointSize);
     int fontSize() const;
 

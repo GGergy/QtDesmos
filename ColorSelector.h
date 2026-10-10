@@ -8,8 +8,8 @@ class ColorSelector : public QToolButton {
 public:
     explicit ColorSelector(QWidget *parent = nullptr);
     void setColor(const QColor &color);
-    const QColor &color() const;
     void setdefault();
+    const QColor &color() const;
 
 signals:
     void colorChanged(const QColor &color);
